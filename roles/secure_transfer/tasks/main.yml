@@ -1,0 +1,13 @@
+---
+- name: Подготовка репозитория хранения на целевом сервере
+  file:
+    path: "{{ target_destination_dir }}"
+    state: directory
+    mode: '0750'
+
+- name: Синхронизация и защищенная транспортировка пакетов (Rsync over SSH)
+  synchronize:
+    src: "{{ backup_local_dir }}/"
+    dest: "{{ target_destination_dir }}/"
+    mode: push
+  delegate_to: "{{ groups['source_nodes'][0] }}"
