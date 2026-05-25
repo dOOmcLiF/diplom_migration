@@ -1,0 +1,26 @@
+---
+- name: Этап 1 и 2. Резервное копирование и архивация на исходном узле
+  hosts: source_nodes
+  gather_facts: true
+  vars:
+    backup_local_dir: "/var/backup/migration_staging"
+    app_source_dir: "/var/www/production_app"
+    db_type: "postgresql" # Возможные значения: postgresql, mysql
+    db_name: "app_main_db"
+    db_user: "postgres"
+    db_password: "secure_db_password"
+  roles:
+    - database_backup
+    - application_archive
+
+- name: Этап 3, 4 и 5. Безопасная транспортировка и верификация целостности
+  hosts: target_nodes
+  gather_facts: true
+  vars:
+    backup_local_dir: "/var/backup/migration_staging"
+    target_destination_dir: "/var/backup/migration_received"
+    source_host_ip: "192.168.1.10"
+    source_host_user: "deploy"
+  roles:
+    - secure_transfer
+    - integrity_check
