@@ -1,0 +1,27 @@
+---
+- name: Валидация контрольных сумм полученных архивов по манифесту
+  shell: "sha256sum -c manifest.sha256"
+  args:
+    chdir: "{{ target_destination_dir }}"
+  register: verification_output
+  failed_when: verification_output.rc != 0
+
+- name: Дешифрование пакета СУБД при успешной проверке целостности
+  command: >
+    openssl enc -d -aes-256-cbc 
+    -in {{ target_destination_dir }}/database_dump.sql.gz.enc 
+    -out {{ target_destination_dir }}/database_dump.sql.gz 
+    -k {{ secret_encryption_key }}
+
+- name: Дешифрование пакета статических файлов приложения
+  command: >
+    openssl enc -d -aes-256-cbc 
+    -in {{ target_destination_dir }}/application_core.tar.gz.enc 
+    -out {{ target_destination_dir }}/application_core.tar.gz 
+    -k {{ secret_encryption_key }}
+
+- name: Деструктивная очистка временной staging-области на исходном сервере
+  file:
+    path: "{{ backup_local_dir }}"
+    state: absent
+  delegate_to: "{{ groups['source_nodes'][0] }}"
