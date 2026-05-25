@@ -1,0 +1,16 @@
+---
+- name: Инициализация временной директории для staging-области
+  file:
+    path: "{{ backup_local_dir }}"
+    state: directory
+    mode: '0750'
+
+- name: Создание резервной копии СУБД PostgreSQL
+  shell: "pg_dump -h localhost -U {{ db_user }} {{ db_name }} | gzip > {{ backup_local_dir }}/database_dump.sql.gz"
+  environment:
+    PGPASSWORD: "{{ db_password }}"
+  when: db_type == "postgresql"
+  
+- name: Создание резервной копии СУБД MySQL
+  shell: "mysqldump -h localhost -u {{ db_user }} -p'{{ db_password }}' {{ db_name }} | gzip > {{ backup_local_dir }}/database_dump.sql.gz"
+  when: db_type == "mysql"
