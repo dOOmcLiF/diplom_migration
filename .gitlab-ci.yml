@@ -1,0 +1,23 @@
+stages:
+  - execute_migration
+
+run_migration_playbook:
+  stage: execute_migration
+  image: alpine:3.19
+  before_script:
+    # Установка необходимых системных утилит в окружение GitLab Runner
+    - apk add --no-cache ansible rsync openssh-client git
+    # Инициализация SSH-агента для работы с приватными ключами
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    # Добавление серверов в список известных узлов для исключения интерактивных запросов
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    # Запуск основного плейбука с передачей секретов из переменных GitLab
+    - ansible-playbook -i inventory.ini playbooks/migrate.yml --extra-vars "secret_encryption_key=$BACKUP_CRYPT_KEY"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
