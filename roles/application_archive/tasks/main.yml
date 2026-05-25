@@ -1,0 +1,40 @@
+---
+- name: Компрессия директории веб-приложения в tar.gz архив
+  archive:
+    path: "{{ app_source_dir }}"
+    dest: "{{ backup_local_dir }}/application_core.tar.gz"
+    format: gz
+    exclude_path:
+      - "{{ app_source_dir }}/cache"
+      - "{{ app_source_dir }}/logs"
+      - "{{ app_source_dir }}/.git"
+
+- name: Симметричное шифрование архива базы данных (AES-256-CBC)
+  command: >
+    openssl enc -aes-256-cbc -salt 
+    -in {{ backup_local_dir }}/database_dump.sql.gz 
+    -out {{ backup_local_dir }}/database_dump.sql.gz.enc 
+    -k {{ secret_encryption_key }}
+
+- name: Симметричное шифрование архива приложения (AES-256-CBC)
+  command: >
+    openssl enc -aes-256-cbc -salt 
+    -in {{ backup_local_dir }}/application_core.tar.gz 
+    -out {{ backup_local_dir }}/application_core.tar.gz.enc 
+    -k {{ secret_encryption_key }}
+
+- name: Расчет эталонных контрольных сумм SHA-256 на исходном сервере
+  stat:
+    path: "{{ item }}"
+    checksum_algorithm: sha256
+  register: source_checksums
+  with_items:
+    - "{{ backup_local_dir }}/database_dump.sql.gz.enc"
+    - "{{ backup_local_dir }}/application_core.tar.gz.enc"
+
+- name: Сохранение хэш-значений в манифест проекта
+  copy:
+    content: |
+      {{ source_checksums.results[0].stat.checksum }}  database_dump.sql.gz.enc
+      {{ source_checksums.results[1].stat.checksum }}  application_core.tar.gz.enc
+    dest: "{{ backup_local_dir }}/manifest.sha256"
